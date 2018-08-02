@@ -13,6 +13,7 @@
     "nodemon": "^1.18.3"
   },
   "dependencies": {
-    "gamepad": "^1.6.0"
+    "gamepad": "^1.6.0",
+    "motor-hat": "^2.0.2"
   }
 }
