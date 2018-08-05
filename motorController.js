@@ -1,14 +1,27 @@
+let spec = {
+    address: 0x60,
+    steppers: [{ W1: 'M1', W2: 'M2' }, { W1: 'M3', W2: 'M4' }],
+    servos: [0,14]
+};
+var motorHat = require('motor-hat')(spec);
 
+var fs = require('fs')
+ 
+// Since MotorHat 2.0, the instance needs to be initialized.
+// This is to enable async initialization, feel free to open an issue if this is a pain.
+motorHat.init();
 
-function Motor(stepperMotor, maxSpeed)
+function Motor(motorId, maxSpeed, defaultSpeed)
 {    
-    this.speed = 30;
-    this.sign = 1;
-    this.dir = "fwd";
-    this.stepper = stepperMotor;
-    this.stepper.setSteps(200);    
-    this.stepper.setSpeed({rpm:this.speed});
+    this.speed = 0;
+    this.motorId = motorId;
+    this.stepper = motorHat.steppers[motorId];    
     this.maxSpeed = maxSpeed;
+    this.defaultSpeed = defaultSpeed;   
+    this.defaultSpeedAcceleration = 0;
+    this.flipFactor = 1;
+
+    this.restoreDefaultSpeed();
 }
 
 Motor.prototype.shutdown = function()
@@ -19,45 +32,42 @@ Motor.prototype.shutdown = function()
 
 Motor.prototype.updateSpeed = function(value)
 {
-    var newSign = -Math.sign(value);
     var absValue = Math.abs(value);    
-
+ 
     if(absValue < 0.2)
     {   
-        this.speed = 0;        
+        value = 0;        
     }
-    else
-    {
-        this.speed = absValue * this.maxSpeed;
-        if(this.sign != newSign)
-        {
-            if(newSign> 0)
-            {
-                this.dir = "fwd"
-            }
-            else{
-                this.dir = "back"
-            }
-        
-            this.sign = newSign;        
-        }
 
-        this.stepper.setSpeed({rpm:this.speed});
+    this.speed = value * this.maxSpeed;
+}
+
+Motor.prototype.updateDefaultSpeedAcceleration = function(value)
+{
+    if(Math.abs(value) < 0.2)
+    {
+        value = 0;
     }
+
+    this.defaultSpeedAcceleration = value * 0.05;
 }
 
 Motor.prototype.motorStep = function(self)
 {
-    var retried = 0;
-    var now = void 0;
-    var startTime = new Date().getTime();    
-
-    if(self.speed > 0)
+    if(this.defaultSpeedAcceleration != 0)
     {
+        self.defaultSpeed += self.defaultSpeedAcceleration;    }
 
-        wait = 1 / self.stepper.options.pulsefreq * 1000;
+    var finalSpeed = (self.speed + self.defaultSpeed) * this.flipFactor;
 
-        self.stepper.oneStep(self.dir, function () {});
+    var absSpeed = Math.abs(finalSpeed);    
+
+    if(absSpeed > 0)
+    {
+        wait = 1 / absSpeed * 1000;
+
+        var dir = finalSpeed < 0 ? "fwd" : "back";
+        self.stepper.oneStep(dir, function () {});
     }
     else
     {
@@ -77,6 +87,58 @@ Motor.prototype.startMotor = function ()
 {
     this.nextStep(0);
 }
+
+
+Motor.prototype.saveDefaultSpeed = function ()
+{
+    let value = 
+    {
+         speed : this.defaultSpeed,
+         flipFactor : this.flipFactor
+    };
+    let data = JSON.stringify(value);
+
+    var fileName = `motor_${this.motorId}.json`;
+
+    console.log('Save', fileName)
+
+    fs.writeFile(fileName, data, (err) =>
+    {
+        if(err)
+        {
+            console.log(err);
+            return;
+        }
+
+        console.log('Save default speed to file', this.defaultSpeed, fileName);
+    });
+}
+
+
+Motor.prototype.restoreDefaultSpeed = function ()
+{
+    var fileName = `motor_${this.motorId}.json`;
+    console.log('Trying to Read', fileName)
+
+    fs.readFile(fileName, (err, data) => {
+        if(err)
+        {
+            console.log(err);
+            return;
+        }
+        var json = JSON.parse(data);
+        this.defaultSpeed = json.speed;
+        this.flipFactor = json.flipFactor
+        console.log('Default Speed ', this.defaultSpeed)
+        console.log('Flip Factor ', this.flipFactor)
+    });
+}
+
+Motor.prototype.flip = function ()
+{
+    this.flipFactor *= -1;
+}
+
 
 module.exports = Motor;
  

@@ -1,57 +1,82 @@
 var gamepad = require("gamepad");
+gamepad.init()
 
+// Create a game loop and poll for events
+setInterval(gamepad.processEvents, 16);
+// Scan for new gamepads as a slower rate
+setInterval(gamepad.detectDevices, 500);
 
-function initGamepad(raAxis, decAxis, onRAChanged, onDecChanged){
-    // Initialize the library
-    gamepad.init()
+class GamepadAxis
+{
+    constructor (axis, normalize, onValueChanged)
+    {
+        this.axis = axis;
+        this.normalize = normalize;
+        this.onValueChanged = onValueChanged;
     
-    // List the state of all currently attached devices
-    for (var i = 0, l = gamepad.numDevices(); i < l; i++) {
-        console.log(i, gamepad.deviceAtIndex());
+        // Listen for move events on all gamepads
+        gamepad.on("move", (id, gamePadAxis, value) => 
+        {    
+            if(this.axis == gamePadAxis)
+            {            
+                this.handleValueChanged(this, value)
+            }
+        });
     }
-    
-    // Create a game loop and poll for events
-    setInterval(gamepad.processEvents, 16);
-    // Scan for new gamepads as a slower rate
-    setInterval(gamepad.detectDevices, 500);
-    
-    // Listen for move events on all gamepads
-    gamepad.on("move", function (id, axis, value) {
-        
-        if(axis == raAxis)
-        {            
-            onRAChanged(value)
+
+    handleValueChanged(self, newValue)
+    {
+        if (self.normalize)
+        {
+            newValue = ((newValue * 0.5) + 0.5);
         }
-        else if(axis == decAxis)
-        {            
-            onDecChanged(value)
-        }
-    });
-    
-    // // // Listen for button up events on all gamepads
-    // // gamepad.on("up", function (id, num) {
-    // //     console.log("up", {
-    // //     id: id,
-    // //     num: num,
-    // //     });
-    // // });
-    
-    // // // Listen for button down events on all gamepads
-    // // gamepad.on("down", function (id, num) {
-    // //     console.log("down", {
-    // //     id: id,
-    // //     num: num,
-    // //     });
-    // // });
+
+        self.onValueChanged(newValue);
+    }
+
+    shutDown()
+    {
+        gamepad.shutDown();
+    }
 }
 
-function shutDown(){
-    gamepad.shutDown();
+class GamepadButton
+{
+    constructor (btnId, onPressed, onReleased)
+    {
+        this.btnId = btnId;
+        this.onPressed = onPressed;
+        this.onReleased = onReleased;
+    
+        // Listen for move events on all gamepads
+        gamepad.on("down", (id, num) => 
+        {    
+            if(this.btnId == num)
+            {            
+                this.onPressed()
+            }
+        });
+
+        gamepad.on("up", (id, num) => 
+        {    
+            if(this.btnId == num)
+            {            
+                this.onReleased()
+            }
+        });
+    }
+
+    shutDown()
+    {
+        gamepad.shutDown();
+    }
 }
 
-
-module.exports.initGamepad = initGamepad;
-module.exports.shutDown = shutDown;
+module.exports = 
+{
+    GamepadAxis : GamepadAxis,
+    GamepadButton : GamepadButton
+}
  
 
  

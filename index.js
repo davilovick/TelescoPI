@@ -1,48 +1,97 @@
-// get a motor-hat instance with the following initialized:
-// * a non-default I2C address for the motor hat (default is 0x6F)
-// * a stepper with winding one on 'M1' and winding two on 'M2' ports
-// * a dc motor on port 'M4'
-// * a servo on channel 0
-// * a servo on channel 14
-let spec = {
-    address: 0x60,
-    steppers: [{ W1: 'M1', W2: 'M2' }, { W1: 'M3', W2: 'M4' }],
-    servos: [0,14]
-};
-var motorHat = require('motor-hat')(spec);
- 
-// Since MotorHat 2.0, the instance needs to be initialized.
-// This is to enable async initialization, feel free to open an issue if this is a pain.
-motorHat.init();
-
-
 var MotorController = require('./motorController.js')
+var GamepadController = require('./gamepadController.js')
 
-var motorRA = new MotorController(motorHat.steppers[0], 50);
+// Stepper motors
+var motorRA = new MotorController(0, 21 * 8, 21.7);
+var motorDec = new MotorController(1, 21 * 8, 0);
+
 motorRA.startMotor();
-var motorDec = new MotorController(motorHat.steppers[1], 50);
 motorDec.startMotor();
 
-console.log(motorRA);
+
+// Gamepad axis
+var raAxis = new GamepadController.GamepadAxis(3, false, updateRASpeed);
+var decAxis = new GamepadController.GamepadAxis(4, false, updateDecSpeed);
+
+var defaultRASpeed = new GamepadController.GamepadAxis(0, false, updateDefaultRASpeed);
+
+var motorSpeedFactorAxis = new GamepadController.GamepadAxis(5, true, motorSpeedFactor);
+var defaultRASpeedFactorAxis = new GamepadController.GamepadAxis(2, true, defaultRASpeedFactor);
 
 
+var saveTimer;
+var restoreTimer;
+var flipTimer;
+
+var saveBtn = new GamepadController.GamepadButton(8, 
+    () => {
+        saveTimer = setTimeout(saveDefaultRASpeed, 2000)
+    }, 
+    () => 
+    {
+        clearTimeout(saveTimer);
+    });
+
+var restoreBtn = new GamepadController.GamepadButton(6, 
+    () => {
+        restoreTimer = setTimeout(restoreDefaultRASpeed, 2000)
+    }, 
+    () => 
+    {
+        clearTimeout(restoreTimer);
+    });
+
+var flipBtn = new GamepadController.GamepadButton(7, 
+    () => {
+        flipTimer = setTimeout(flipSpinRA, 2000)
+    }, 
+    () => 
+    {
+        clearTimeout(flipTimer);
+    });
+
+// Modify motor speed using gamepad
+var motorFactor = 0;
+var defaultRAFactor = 0;
+
+function motorSpeedFactor(value)
+{
+    motorFactor = value;
+}
+
+function defaultRASpeedFactor(value)
+{
+    defaultRAFactor = value;     
+}
 
 function updateRASpeed(value)
 {
-    motorRA.updateSpeed(value);
+    motorRA.updateSpeed(value * motorFactor);
 }
 
 function updateDecSpeed(value)
 {
-    motorDec.updateSpeed(value);
+    motorDec.updateSpeed(value * motorFactor);
 }
 
+function updateDefaultRASpeed(value)
+{        
+    var acceleration = value * defaultRAFactor;
+    motorRA.updateDefaultSpeedAcceleration(acceleration);
+}
 
+function saveDefaultRASpeed(value)
+{
+    motorRA.saveDefaultSpeed();
+}
 
-var gamepadController = require('./gamepadController.js')
+function restoreDefaultRASpeed(value)
+{
+    motorRA.restoreDefaultSpeed();
+}
 
-var raAxis = 3;
-var decAxis = 4;
-
-
-gamepadController.initGamepad(raAxis, decAxis, updateRASpeed, updateDecSpeed);
+function flipSpinRA(value)
+{
+    console.log('flip')
+    motorRA.flip();
+}
