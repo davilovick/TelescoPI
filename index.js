@@ -2,8 +2,8 @@ var MotorController = require('./motorController.js')
 var GamepadController = require('./gamepadController.js')
 
 // Stepper motors
-var motorRA = new MotorController(0, 21 * 8, 21.7);
-var motorDec = new MotorController(1, 21 * 8, 0);
+var motorRA = new MotorController(0, -1, 21 * 8, 21.7);
+var motorDec = new MotorController(1, 1, 21 * 8, 0);
 
 motorRA.startMotor();
 motorDec.startMotor();

@@ -11,7 +11,7 @@ var fs = require('fs')
 // This is to enable async initialization, feel free to open an issue if this is a pain.
 motorHat.init();
 
-function Motor(motorId, maxSpeed, defaultSpeed)
+function Motor(motorId, flipFactor, maxSpeed, defaultSpeed)
 {    
     this.speed = 0;
     this.motorId = motorId;
@@ -19,7 +19,7 @@ function Motor(motorId, maxSpeed, defaultSpeed)
     this.maxSpeed = maxSpeed;
     this.defaultSpeed = defaultSpeed;   
     this.defaultSpeedAcceleration = 0;
-    this.flipFactor = 1;
+    this.flipFactor = flipFactor;
 
     this.restoreDefaultSpeed();
 }
@@ -66,7 +66,7 @@ Motor.prototype.motorStep = function(self)
     {
         wait = 1 / absSpeed * 1000;
 
-        var dir = finalSpeed < 0 ? "fwd" : "back";
+        var dir = finalSpeed > 0 ? "fwd" : "back";
         self.stepper.oneStep(dir, function () {});
     }
     else
